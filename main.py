@@ -18,14 +18,14 @@ def must_match_field_name(value):
         return False
 
 
-@app.route("/")
+@app.route("/", methods=['get'])
 def search():
     return render_template('search.html')
 
 
-@app.route("/search")
+@app.route("/search", methods=['get'])
 @use_kwargs({
-    'query': fields.Str(required=True),
+    'query': fields.Str(missing=None),
     'field': fields.Str(missing=None, validate=must_match_field_name),
     'size': fields.Int(missing=20),
     'offset': fields.Int(missing=0)
@@ -39,25 +39,32 @@ def search_api(query, field, size, offset):
     for datum in data:
         datum['job_history'] = ', '.join(datum['job_history'])
 
-    results = []
-    if field:
-        for datum in data:
-            # Case-insensitive for simplicity
-            if query.lower() in datum[field].lower():
-                results.append(datum)
-    else:
-        for datum in data:
-            for field_name in FIELD_NAMES:
-                if query.lower() in datum[field_name].lower():
+    if query:
+        results = []
+        if field:
+            for datum in data:
+                # Case-insensitive for simplicity
+                if query.lower() in datum[field].lower():
                     results.append(datum)
-                    break
+        else:
+            for datum in data:
+                for field_name in FIELD_NAMES:
+                    if query.lower() in datum[field_name].lower():
+                        results.append(datum)
+                        break
+    else:
+        results = data
 
     index_start = size * offset
     if index_start > len(results):
         abort(400)
     index_stop = min(size + (size * offset), len(results))
 
-    return jsonify(results[index_start:index_stop])
+    out = {
+        'results': results[index_start:index_stop],
+        'total': len(results)
+    }
+    return jsonify(out)
 
 
 if __name__ == '__main__':

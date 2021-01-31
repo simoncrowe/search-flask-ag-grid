@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" Provides endpoint and web page for simple search API.
-"""
+""" Provides endpoint and web page for simple search API."""
 import os
 import json
+from typing import Iterable, Iterator
 
 from flask import Flask, render_template, abort, jsonify
 from webargs.flaskparser import use_kwargs
@@ -14,8 +14,34 @@ app = Flask(__name__)
 
 
 def must_match_field_name(value):
-    if value not in FIELD_NAMES:
-        return False
+    return value in FIELD_NAMES
+
+
+def prepare_data(data: Iterable[dict]) -> Iterator[dict]:
+    """Make job_history list comma delimited for ease of processing/display.
+    """
+    for datum in data:
+        datum['job_history'] = ', '.join(datum['job_history'])
+        yield datum
+
+
+def filtered_results(data: Iterable[dict],
+                     query: str,
+                     field: str) -> Iterator[dict]:
+    if not query:
+        yield from data
+        return
+
+    for datum in data:
+        if field:
+            # Case-insensitive for simplicity
+            if query.lower() in datum[field].lower():
+                yield datum
+        else:
+            for field_name in FIELD_NAMES:
+                if query.lower() in datum[field_name].lower():
+                    yield datum
+                    break
 
 
 @app.route("/", methods=['get'])
@@ -31,40 +57,26 @@ def search():
     'offset': fields.Int(missing=0)
 })
 def search_api(query, field, size, offset):
-    # Static file used in this example instead of further API call or database connection
-    json_path = os.path.join(app.root_path, 'static/json', 'mock-contacts.json')
+    # File used in this example instead of further API call
+    # or database connection
+    json_path = os.path.join(app.root_path,
+                             'static/json',
+                             'mock-contacts.json')
     data = json.load(open(json_path))
 
-    # Make job_history list comma delimited for ease of processing/display
-    for datum in data:
-        datum['job_history'] = ', '.join(datum['job_history'])
-
-    if query:
-        results = []
-        if field:
-            for datum in data:
-                # Case-insensitive for simplicity
-                if query.lower() in datum[field].lower():
-                    results.append(datum)
-        else:
-            for datum in data:
-                for field_name in FIELD_NAMES:
-                    if query.lower() in datum[field_name].lower():
-                        results.append(datum)
-                        break
-    else:
-        results = data
+    prepped_data = prepare_data(data)
+    results = list(filtered_results(prepped_data, query, field))
 
     index_start = size * offset
     if index_start > len(results):
         abort(400)
     index_stop = min(size + (size * offset), len(results))
 
-    out = {
+    body = {
         'results': results[index_start:index_stop],
         'total': len(results)
     }
-    return jsonify(out)
+    return jsonify(body)
 
 
 if __name__ == '__main__':

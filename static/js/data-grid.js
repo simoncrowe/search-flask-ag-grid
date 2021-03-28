@@ -1,7 +1,7 @@
 // Boilerplate code copied from ag-grid documentation
 // https://www.ag-grid.com/javascript-grid-infinite-scrolling/
 
-var columnDefs = [
+const columnDefs = [
     {headerName: "ID", width: 55,
         valueGetter: 'node.id',
         cellRenderer: 'loadingRenderer'
@@ -15,15 +15,15 @@ var columnDefs = [
 ];
 
 // TODO: find a better place to put config variables
-var blockSize = 20;
+const blockSize = 20;
 
-var gridOptions = {
+const gridOptions = {
     components:{
         loadingRenderer: function(params) {
-            if (params.value !== undefined) {
-                return params.value;
-            } else {
+            if (params.value === undefined) {
                 return '<img src="/static/img/loading.gif">'
+            } else {
+                return params.value;
             }
         }
 
@@ -42,7 +42,7 @@ var gridOptions = {
 
 // Initialise the grid after the page has finished loading
 document.addEventListener('DOMContentLoaded', function() {
-    var gridDiv = document.querySelector('#results-grid');
+    let gridDiv = document.querySelector('#results-grid');
     new agGrid.Grid(gridDiv, gridOptions);
     updateAgGrid();
 });
@@ -58,10 +58,10 @@ document.getElementById('search-field').onchange = function() {
 function updateAgGrid() {
     function DataSource() {
         this.getRows = function (params) {
-            var query = document.getElementById('search-query').value;
-            var field = document.getElementById('search-field').value;
+            let query = document.getElementById('search-query').value;
+            let field = document.getElementById('search-field').value;
             // Calculate the page offset
-            var offset = (params.endRow / blockSize) -1;
+            let offset = (params.endRow / blockSize) -1;
 
             // construct query string
             query_params = '?' + 'query=' + query + '&offset=' + offset;
@@ -74,11 +74,11 @@ function updateAgGrid() {
             request.open('GET', 'search' + query_params, true);
             request.onreadystatechange = function () {
                 if (request.readyState == 4 && request.status == 200) {
-                    var responseData = JSON.parse(request.responseText);
-                    var rowsThisPage = responseData['results'];
+                    let responseData = JSON.parse(request.responseText);
+                    let rowsThisPage = responseData['results'];
 
                     // if on or after the last page, set the last row.
-                    var lastRow = -1;
+                    let lastRow = -1;
                     if (responseData['total'] <= params.endRow) {
                         lastRow = responseData['total'];
                     }
@@ -92,7 +92,7 @@ function updateAgGrid() {
         }
     }
 
-    var dataSourceInstance = new DataSource();
+    let dataSourceInstance = new DataSource();
 
     gridOptions.api.setDatasource(dataSourceInstance);
 
